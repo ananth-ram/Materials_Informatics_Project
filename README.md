@@ -259,3 +259,242 @@ This project demonstrates:
 > We built a physics-informed ML model that reveals **ionicity dominates electronic phase behavior**, while SOC and magnetism play secondary roles, setting the stage for topology-aware materials discovery.
 
 ---
+
+# Materials Informatics Project: Towards ML-Based Detection of Semimetals
+
+##  Motivation
+
+This project was initiated to align with modern research directions in:
+- Materials informatics
+- AI-driven materials discovery
+- Electronic structure prediction
+
+The primary goal was to explore whether machine learning models can identify **semimetallic behavior** (a proxy for topological materials) using data derived from first-principles calculations.
+
+---
+
+##  Dataset
+
+### Source
+- Materials Project (MatPES r2SCAN dataset)
+- ~386k structures available
+- Used subset: 20k–50k structures
+
+### Raw Data Format
+- JSON (~1.9 GB)
+- Contains:
+  - Structure (lattice, atomic positions)
+  - Energies
+  - Band gap
+  - Forces, stress
+  - Symmetry information
+
+---
+
+##  Phase 1 — Dataset Construction
+
+### Approach
+Due to memory constraints, streaming JSON parsing was used:
+- `ijson` for iterative parsing
+- Avoided `json.load()` (caused system freeze)
+
+### Extracted Features
+
+#### Basic Electronic Properties
+- `band_gap`
+- `energy`
+- `cohesive_energy`
+
+#### Symmetry
+- `space_group`
+
+#### Composition-Based Features
+- `Z_mean`, `Z_max`, `Z_var`
+- `EN_range`
+- `num_elements`
+
+#### Physics-Inspired Features
+- `SOC_proxy` (approximation using atomic number)
+- `magmom`
+
+### Initial Output
+- ~20k samples
+- Saved as `.parquet` (~0.8 MB)
+
+---
+
+##  Phase 2 — Baseline ML Model
+
+### Task
+Binary classification:
+- Metal vs Insulator
+
+### Model
+- XGBoost classifier
+
+### Result
+- High accuracy (~93%)
+- ROC-AUC ~0.94
+
+### Observation
+This task was **too easy** and not scientifically meaningful:
+- Band gap directly determines label
+- Model effectively learns trivial threshold
+
+---
+
+##  Phase 3 — Semimetal Classification (Main Objective)
+
+### Label Definition
+- Semimetal ≈ very small band gap (~0 eV)
+- Extremely imbalanced dataset (~0.8%)
+
+### Class Imbalance Handling
+- `scale_pos_weight` used (~10–30 range)
+
+---
+
+##  Results
+
+### Performance
+
+| Metric | Value |
+|------|------|
+| Accuracy | ~96% |
+| ROC-AUC | ~0.65 |
+| Recall (semimetal) | ~0.22 |
+| Precision (semimetal) | ~0.04 |
+
+---
+
+##  Key Observations
+
+### 1. Severe Class Imbalance
+- Semimetals are rare
+- Model struggles to identify minority class
+
+---
+
+### 2. Feature Engineering Limitations
+
+Tried adding:
+
+#### Symmetry Features
+- `has_inversion`
+- `is_high_symmetry`
+
+- No improvement
+
+---
+
+#### Physics-Inspired Feature
+- `topology_score = SOC × Z_mean / EN_range`
+
+- No improvement
+
+---
+
+### 3. Core Failure
+
+The model fails because:
+
+>  Tabular features cannot capture band topology
+
+Missing physics:
+- Band crossings
+- k-space degeneracies
+- Orbital character
+- Symmetry representations
+
+---
+
+## Scientific Insight
+
+This project reveals a critical limitation:
+
+> **Topological properties cannot be reliably predicted using simple tabular descriptors**
+
+Instead, they require:
+
+- Structural representation
+- Orbital-level information
+- k-space electronic structure
+
+---
+
+## Attempted Improvement
+
+### Idea
+Introduce structural features:
+- volume
+- density
+- coordination number
+
+### Issue
+These were not included in initial dataset → required pipeline redesign
+
+---
+
+## Current Status
+
+### Successes
+- Built scalable dataset pipeline from large JSON
+- Implemented ML workflow with imbalance handling
+- Identified limitations of feature-based ML
+
+### Failures (Important)
+- Unable to predict semimetals reliably using tabular features
+- Physics not sufficiently encoded in feature space
+
+---
+
+## 🚀 Next Steps
+
+### 1. Improve Dataset
+- Include structural features (volume, density, coordination)
+- Increase dataset size (50k → full dataset)
+
+---
+
+### 2. Transition to Structure-Aware ML
+- Use local environment descriptors
+- Extract coordination and bonding features
+
+---
+
+### 3. Move to Graph Neural Networks (GNNs)
+
+Planned models:
+- CGCNN
+- MEGNet
+- M3GNet
+
+These models:
+- Represent materials as graphs
+- Learn atomic interactions directly
+- Capture structure → property relationships
+
+---
+
+##  Conclusion
+
+This project demonstrates:
+
+- Classical ML is sufficient for simple electronic classification
+- It fails for **topological and semimetallic behavior**
+- Structural and graph-based approaches are necessary
+
+---
+
+## Takeaway
+
+> The failure of tabular ML is not a setback —  
+> it is a **clear indicator of the need for physically meaningful representations**
+
+---
+
+## 🧑‍💻 Author
+
+Ananthram K. S.  
+Ph.D. Physics — Computational Condensed Matter  
+Specialization: Topological Materials & Electronic Structure Theory
